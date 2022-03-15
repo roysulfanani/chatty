@@ -1,6 +1,7 @@
 import App from "@/Layouts/App";
-import { Head, useForm, usePage } from "@inertiajs/inertia-react";
 import React from "react";
+import { Inertia } from "@inertiajs/inertia";
+import { Head, useForm, usePage } from "@inertiajs/inertia-react";
 
 const sts = (x, y, option = "justify") => {
     if (option == "justify") {
@@ -33,6 +34,11 @@ export default function Show(props) {
             },
         });
     };
+
+    Echo.channel("chats").listen("MessageSent", ({ chat }) => {
+        Inertia.reload({ preserveScroll: true });
+    });
+
     return (
         <div>
             <Head title={`Chat with ${user.name}`} />
