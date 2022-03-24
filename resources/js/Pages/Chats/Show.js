@@ -1,5 +1,5 @@
 import App from "@/Layouts/App";
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Inertia } from "@inertiajs/inertia";
 import { Head, useForm, usePage } from "@inertiajs/inertia-react";
 
@@ -23,6 +23,9 @@ const sts = (x, y, option = "justify") => {
 
 export default function Show(props) {
     const { auth } = usePage().props;
+    const [typing, setTyping] = useState(false);
+    const scrollRef = useRef(null);
+    const messageRef = useRef(null);
     const { user, chats } = props;
     const { data, setData, reset, errors, post } = useForm({ message: "" });
 
@@ -31,13 +34,39 @@ export default function Show(props) {
         post(route("chats.store", user.username), {
             onSuccess: () => {
                 reset("message");
+                scrollRef.current.scrollTo(0, 999999);
             },
         });
     };
 
-    Echo.channel("chats").listen("MessageSent", ({ chat }) => {
-        Inertia.reload({ preserveScroll: true });
-    });
+    const onTyping = () => {
+        setTimeout(() => {
+            Echo.private(`chats.${user.uuid}`).whisper("isTyping", {
+                name: user.name,
+            });
+        }, 500);
+    };
+
+    Echo.private("chats." + auth.user.uuid)
+        .listenForWhisper("isTyping", (e) => {
+            setTyping(true);
+
+            setTimeout(() => setTyping(false), 2000);
+        })
+        .listen("MessageSent", ({ chat }) => {
+            Inertia.reload({
+                preserveScroll: true,
+                onSuccess: () => {
+                    scrollRef.current.scrollTo(0, 999999);
+                    setTyping(false);
+                },
+            });
+        });
+
+    useEffect(() => {
+        scrollRef.current.scrollTo(0, 999999);
+        messageRef.current.focus();
+    }, []);
 
     return (
         <div>
@@ -45,8 +74,16 @@ export default function Show(props) {
             <div className="flex flex-col justify-between h-screen">
                 <div className="border-b p-4">
                     <h1 className="font-semibold">{user.name}</h1>
+                    {typing && (
+                        <div className="text-xs text-gray-500">
+                            Sedang Ngetik . . .
+                        </div>
+                    )}
                 </div>
-                <div className="px-4 py-2 flex-1 overflow-auto space-y-2">
+                <div
+                    className="px-4 py-2 flex-1 overflow-auto space-y-2"
+                    ref={scrollRef}
+                >
                     {chats.length ? (
                         chats.map((chat) => (
                             <div
@@ -76,6 +113,7 @@ export default function Show(props) {
                 <div className="border-t px-4 py-2">
                     <form onSubmit={submitHandler}>
                         <input
+                            onKeyUp={onTyping}
                             value={data.message}
                             autoComplete={"off"}
                             onChange={(event) =>
@@ -84,6 +122,7 @@ export default function Show(props) {
                                     message: event.target.value,
                                 })
                             }
+                            ref={messageRef}
                             placeholder="Start typing . . ."
                             type="text"
                             name="message"

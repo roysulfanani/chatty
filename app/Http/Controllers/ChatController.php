@@ -36,7 +36,7 @@ class ChatController extends Controller
             'message' => $request->message,
         ]);
 
-        broadcast(new MessageSent($chat))->toOthers();
+        broadcast(new MessageSent($chat->load('receiver')))->toOthers();
         
         return back();
     }
